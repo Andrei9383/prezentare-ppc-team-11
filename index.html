@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WindMon — Wind Turbine Monitoring Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #FFFFFF;
+  --bg-alt: #F9FAFB;
+  --dark: #0F172A;
+  --text: #374151;
+  --muted: #6B7280;
+  --emerald: #10B981;
+  --red: #EF4444;
+  --amber: #F59E0B;
+  --cyan: #06B6D4;
+  --purple: #8B5CF6;
+  --blue: #3B82F6;
+  --orange: #F97316;
+  --border: #E5E7EB;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+html { font-size: 16px; scroll-behavior: auto; overflow: hidden; }
+body {
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--dark);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   SLIDE CONTAINER
+   ============================================================ */
+.deck {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(2rem, 5vw, 5rem) clamp(2rem, 6vw, 7rem);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(18px);
+  transition: opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1), visibility 0s 0.5s;
+  overflow: hidden;
+}
+.slide.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition: opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1), visibility 0s 0s;
+}
+
+.slide--white { background: var(--bg); color: var(--text); }
+.slide--dark  { background: var(--dark); color: #FFFFFF; }
+
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+.slide-label {
+  font-family: var(--mono);
+  font-size: clamp(0.65rem, 1vw, 0.8rem);
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+.slide-title {
+  font-weight: 800;
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin-bottom: 1.5rem;
+}
+.slide-subtitle {
+  font-size: clamp(0.9rem, 1.5vw, 1.15rem);
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 56ch;
+}
+.slide--dark .slide-subtitle { color: rgba(255,255,255,0.6); }
+.slide--dark .slide-title { color: #FFFFFF; }
+
+h3 {
+  font-weight: 700;
+  font-size: clamp(0.85rem, 1.2vw, 1rem);
+  margin-bottom: 0.5rem;
+}
+
+/* ============================================================
+   REVEAL ANIMATION
+   ============================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.45s cubic-bezier(.4,0,.2,1), transform 0.45s cubic-bezier(.4,0,.2,1);
+}
+.slide.active .reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+.slide.active .reveal.d1 { transition-delay: 0.08s; }
+.slide.active .reveal.d2 { transition-delay: 0.16s; }
+.slide.active .reveal.d3 { transition-delay: 0.24s; }
+.slide.active .reveal.d4 { transition-delay: 0.32s; }
+.slide.active .reveal.d5 { transition-delay: 0.40s; }
+.slide.active .reveal.d6 { transition-delay: 0.48s; }
+.slide.active .reveal.d7 { transition-delay: 0.56s; }
+.slide.active .reveal.d8 { transition-delay: 0.64s; }
+.slide.active .reveal.d9 { transition-delay: 0.72s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .slide, .reveal { transition: none !important; transform: none !important; }
+  .slide.active, .slide.active .reveal { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+.progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  background: var(--orange);
+  z-index: 1000;
+  transition: width 0.35s cubic-bezier(.4,0,.2,1);
+}
+
+/* ============================================================
+   SLIDE COUNTER
+   ============================================================ */
+.counter {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 2rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  z-index: 1000;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(4px);
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.slide--dark.active ~ .counter,
+.counter.on-dark {
+  background: rgba(15,23,42,0.85);
+  color: rgba(255,255,255,0.5);
+  border-color: rgba(255,255,255,0.1);
+}
+
+/* ============================================================
+   LAYOUT HELPERS
+   ============================================================ */
+.row { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.col { flex: 1; min-width: 0; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; }
+.grid-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+.grid-2x3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.85rem; }
+.grid-3x3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.mt-auto { margin-top: auto; }
+.mt-1 { margin-top: 0.75rem; }
+.mt-2 { margin-top: 1.25rem; }
+.mt-3 { margin-top: 1.75rem; }
+.mb-1 { margin-bottom: 0.75rem; }
+.mb-2 { margin-bottom: 1.25rem; }
+.text-center { text-align: center; }
+.gap-sm { gap: 0.65rem; }
+
+/* ============================================================
+   CARD STYLES
+   ============================================================ */
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: clamp(0.75rem, 1.2vw, 1.1rem);
+  position: relative;
+  overflow: hidden;
+}
+.card--accent::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.card--cyan::before    { background: var(--cyan); }
+.card--blue::before    { background: var(--blue); }
+.card--green::before   { background: var(--emerald); }
+.card--red::before     { background: var(--red); }
+.card--amber::before   { background: var(--amber); }
+.card--purple::before  { background: var(--purple); }
+.card--orange::before  { background: var(--orange); }
+.card--gray::before    { background: var(--muted); }
+
+.card .big-num {
+  font-size: clamp(1.5rem, 2.8vw, 2.4rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.card .card-label {
+  font-size: clamp(0.6rem, 0.9vw, 0.78rem);
+  color: var(--muted);
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+.card .card-detail {
+  font-family: var(--mono);
+  font-size: clamp(0.55rem, 0.75vw, 0.68rem);
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.stat-card {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: clamp(0.6rem, 1vw, 1rem);
+  text-align: center;
+}
+.stat-card .big-num {
+  font-size: clamp(1.3rem, 2.4vw, 2rem);
+  font-weight: 800;
+  line-height: 1.1;
+}
+.stat-card .card-label {
+  font-size: clamp(0.6rem, 0.85vw, 0.72rem);
+  color: var(--muted);
+  margin-top: 0.2rem;
+  font-weight: 500;
+}
+
+/* ============================================================
+   BULLET LIST
+   ============================================================ */
+.bullets { list-style: none; padding: 0; }
+.bullets li {
+  position: relative;
+  padding-left: 1.4rem;
+  margin-bottom: 0.65rem;
+  font-size: clamp(0.8rem, 1.2vw, 0.95rem);
+  line-height: 1.55;
+  color: var(--text);
+}
+.bullets li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--orange);
+}
+
+/* ============================================================
+   CALLOUT
+   ============================================================ */
+.callout {
+  border-radius: 10px;
+  padding: clamp(0.65rem, 1vw, 1rem) clamp(0.85rem, 1.2vw, 1.2rem);
+  font-size: clamp(0.72rem, 1vw, 0.88rem);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.callout--orange {
+  background: rgba(249,115,22,0.08);
+  border: 1px solid rgba(249,115,22,0.2);
+  color: #9A3412;
+}
+.callout--green {
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.2);
+  color: #065F46;
+}
+.callout--purple {
+  background: rgba(139,92,246,0.08);
+  border: 1px solid rgba(139,92,246,0.2);
+  color: #5B21B6;
+}
+.callout--cyan {
+  background: rgba(6,182,212,0.08);
+  border: 1px solid rgba(6,182,212,0.2);
+  color: #155E75;
+}
+
+/* ============================================================
+   FLOW DIAGRAM
+   ============================================================ */
+.flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; }
+.flow-box {
+  border-radius: 10px;
+  padding: clamp(0.5rem, 0.9vw, 0.85rem) clamp(0.7rem, 1.2vw, 1.1rem);
+  font-weight: 600;
+  font-size: clamp(0.65rem, 0.95vw, 0.82rem);
+  text-align: center;
+  color: #fff;
+  min-width: 6rem;
+  white-space: nowrap;
+}
+.flow-arrow {
+  font-size: clamp(1rem, 1.8vw, 1.5rem);
+  color: var(--muted);
+  padding: 0 0.3rem;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   PLACEHOLDER IMAGE
+   ============================================================ */
+.placeholder {
+  background: var(--bg-alt);
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: clamp(0.75rem, 1.1vw, 0.95rem);
+  font-weight: 500;
+  min-height: 180px;
+  flex: 1;
+}
+
+/* ============================================================
+   NUMBERED CIRCLE
+   ============================================================ */
+.num-circle {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   PILL / BADGE
+   ============================================================ */
+.pill {
+  display: inline-block;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: clamp(0.6rem, 0.8vw, 0.72rem);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   CODE TEXT
+   ============================================================ */
+.mono { font-family: var(--mono); }
+code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--bg-alt);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+/* ============================================================
+   SECTION SLIDE (DARK)
+   ============================================================ */
+.section-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex: 1;
+}
+
+/* ============================================================
+   HORIZONTAL BAR (for anomaly rows)
+   ============================================================ */
+.h-bar {
+  height: 1.8rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* ============================================================
+   FILTER BOX (API slide)
+   ============================================================ */
+.filter-box {
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-family: var(--mono);
+  font-size: clamp(0.6rem, 0.85vw, 0.75rem);
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  text-align: center;
+}
+.filter-arrow {
+  text-align: center;
+  font-size: 1rem;
+  color: var(--muted);
+  padding: 0.15rem 0;
+}
+
+/* ============================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================ */
+@media (max-width: 900px) {
+  .grid-3, .grid-4, .grid-2x3, .grid-3x3 { grid-template-columns: repeat(2, 1fr); }
+  .grid-6 { grid-template-columns: repeat(2, 1fr); }
+  .row { flex-direction: column; }
+  .flow { gap: 0.2rem; }
+  .flow-box { min-width: 4.5rem; font-size: 0.6rem; padding: 0.4rem 0.6rem; }
+}
+@media (max-width: 600px) {
+  .grid-2, .grid-3, .grid-4, .grid-2x3, .grid-3x3, .grid-6 { grid-template-columns: 1fr; }
+  .slide { padding: 1.5rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="counter" id="counter"></div>
+
+<div class="deck" id="deck">
+
+<!-- ====================================================================
+     SLIDE 1 — TITLE
+     ==================================================================== -->
+<section class="slide slide--dark active" data-theme="dark">
+  <div style="display:flex;align-items:center;flex:1;">
+    <div style="width:5px;height:clamp(120px,22vh,200px);background:var(--orange);border-radius:3px;margin-right:clamp(1.5rem,3vw,2.5rem);flex-shrink:0;" class="reveal"></div>
+    <div>
+      <div class="reveal d1" style="font-size:clamp(3.5rem,9vw,7rem);font-weight:900;letter-spacing:-0.04em;line-height:1;">Wind<span style="color:var(--orange)">Mon</span></div>
+      <div class="reveal d2" style="font-size:clamp(1rem,2vw,1.6rem);font-weight:300;color:rgba(255,255,255,0.7);margin-top:0.6rem;letter-spacing:0.01em;">Wind Turbine Monitoring Platform</div>
+      <div class="reveal d3" style="font-size:clamp(0.75rem,1.2vw,1rem);color:rgba(255,255,255,0.4);margin-top:1.2rem;line-height:1.7;">Real-time data engineering for wind energy operations</div>
+      <div class="reveal d4" style="font-size:clamp(0.7rem,1vw,0.85rem);color:rgba(255,255,255,0.35);margin-top:0.6rem;">Team 11 &ensp;|&ensp; PPC HackITall 2026</div>
+      <div class="reveal d5" style="font-size:clamp(0.7rem,1vw,0.85rem);color:rgba(255,255,255,0.3);margin-top:0.4rem;">Stan Andrei-Cristian &middot; Toader Serban-Valentin &middot; Mirea-Bulubasa Petre Luca</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 2 — THE PROBLEM
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal">The Challenge</div>
+  <div class="row" style="flex:1;align-items:flex-start;">
+    <div class="col" style="flex:1.2;">
+      <ul class="bullets reveal d1">
+        <li>PPC Romania operates <strong>4 wind parks</strong> with <strong>99 turbines</strong></li>
+        <li>Each turbine generates data from <strong>8 sensors</strong> every ~5 min</li>
+        <li>Raw data sits in <strong>AWS S3 as Parquet files</strong> — no processing</li>
+        <li><strong>Zero visibility</strong> into anomalies or fleet health</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="grid-2 gap-sm reveal d2">
+        <div class="stat-card"><div class="big-num" style="color:var(--cyan)">99</div><div class="card-label">Turbines</div></div>
+        <div class="stat-card"><div class="big-num" style="color:var(--blue)">8</div><div class="card-label">Sensors Each</div></div>
+        <div class="stat-card"><div class="big-num" style="color:var(--emerald)">384K+</div><div class="card-label">Readings</div></div>
+        <div class="stat-card"><div class="big-num" style="color:var(--amber)">3</div><div class="card-label">Data Sources</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="callout callout--orange reveal d3 mt-2">
+    How do you monitor 99 turbines generating 384K+ sensor readings with real-time quality control?
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 3 — HERO
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal">What We Built</div>
+  <div class="placeholder reveal d1" style="flex:1;max-height:65vh;">[INSERT DASHBOARD SCREENSHOT]</div>
+  <div class="slide-subtitle reveal d2 mt-2 text-center" style="max-width:100%;text-align:center;">End-to-end: S3 &rarr; quality control &rarr; anomaly detection &rarr; AI insights &rarr; dashboard</div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 4 — SECTION: ARCHITECTURE
+     ==================================================================== -->
+<section class="slide slide--dark" data-theme="dark">
+  <div class="section-center">
+    <div class="slide-label reveal" style="color:var(--cyan);">ARCHITECTURE</div>
+    <div class="slide-title reveal d1">System Architecture</div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 5 — ARCHITECTURE OVERVIEW
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.4rem,2.8vw,2.2rem);">Architecture Overview</div>
+
+  <!-- SVG Architecture Diagram -->
+  <div class="reveal d1" style="flex:1;display:flex;align-items:center;justify-content:center;">
+    <svg viewBox="0 0 960 480" style="width:100%;max-width:100%;max-height:82vh;" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, sans-serif">
+      <!-- Data Sources -->
+      <rect x="10" y="60" width="140" height="120" rx="12" fill="#FFF7ED" stroke="#F97316" stroke-width="2"/>
+      <text x="80" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="#0F172A">AWS S3</text>
+      <text x="80" y="118" text-anchor="middle" font-size="8" fill="#6B7280">park_data/</text>
+      <text x="80" y="130" text-anchor="middle" font-size="8" fill="#6B7280">meteo_data/</text>
+      <text x="80" y="142" text-anchor="middle" font-size="8" fill="#6B7280">wtg_data/</text>
+      <text x="80" y="158" text-anchor="middle" font-size="8" font-weight="600" fill="#9A3412">Parquet files</text>
+
+      <!-- Arrow S3 → Pipelines -->
+      <line x1="150" y1="120" x2="195" y2="120" stroke="#94A3B8" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Pipelines -->
+      <rect x="200" y="30" width="180" height="180" rx="12" fill="#ECFDF5" stroke="#10B981" stroke-width="2"/>
+      <text x="290" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#0F172A">Python Pipelines</text>
+      <rect x="215" y="65" width="150" height="22" rx="4" fill="#D1FAE5"/><text x="290" y="80" text-anchor="middle" font-size="8" fill="#065F46">Ingest (tag parse, errors)</text>
+      <rect x="215" y="92" width="150" height="22" rx="4" fill="#D1FAE5"/><text x="290" y="107" text-anchor="middle" font-size="8" fill="#065F46">Quality (7 rules, flags)</text>
+      <rect x="215" y="119" width="150" height="22" rx="4" fill="#D1FAE5"/><text x="290" y="134" text-anchor="middle" font-size="8" fill="#065F46">Anomaly (4 detectors)</text>
+      <rect x="215" y="146" width="150" height="22" rx="4" fill="#D1FAE5"/><text x="290" y="161" text-anchor="middle" font-size="8" fill="#065F46">Incidents + Reports</text>
+      <rect x="215" y="173" width="150" height="22" rx="4" fill="#A7F3D0"/><text x="290" y="188" text-anchor="middle" font-size="7" font-weight="600" fill="#065F46">Every 15min + daily 09:00</text>
+
+      <!-- Arrow Pipelines → DB -->
+      <line x1="380" y1="120" x2="425" y2="120" stroke="#94A3B8" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Database -->
+      <rect x="430" y="40" width="150" height="160" rx="12" fill="#EFF6FF" stroke="#3B82F6" stroke-width="2"/>
+      <text x="505" y="65" text-anchor="middle" font-size="11" font-weight="700" fill="#0F172A">PostgreSQL 16</text>
+      <text x="505" y="85" text-anchor="middle" font-size="9" fill="#1E40AF">14 tables, 15+ indexes</text>
+      <rect x="445" y="95" width="120" height="16" rx="3" fill="#DBEAFE"/><text x="505" y="106" text-anchor="middle" font-size="7" fill="#1E40AF">sensor_readings_15min</text>
+      <rect x="445" y="115" width="120" height="16" rx="3" fill="#DBEAFE"/><text x="505" y="126" text-anchor="middle" font-size="7" fill="#1E40AF">anomalies / incidents</text>
+      <rect x="445" y="135" width="120" height="16" rx="3" fill="#DBEAFE"/><text x="505" y="146" text-anchor="middle" font-size="7" fill="#1E40AF">daily_reports</text>
+      <rect x="445" y="155" width="120" height="16" rx="3" fill="#DBEAFE"/><text x="505" y="166" text-anchor="middle" font-size="7" fill="#1E40AF">tenants / parks / turbines</text>
+
+      <!-- Arrow DB → API -->
+      <line x1="580" y1="120" x2="625" y2="120" stroke="#94A3B8" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Redis (below DB, connected to API) -->
+      <rect x="430" y="240" width="150" height="55" rx="10" fill="#FEF2F2" stroke="#EF4444" stroke-width="1.5"/>
+      <text x="505" y="263" text-anchor="middle" font-size="10" font-weight="700" fill="#0F172A">Redis 7</text>
+      <text x="505" y="278" text-anchor="middle" font-size="7" fill="#6B7280">TTL cache: 2-30min</text>
+      <line x1="580" y1="267" x2="700" y2="200" stroke="#EF4444" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+      <!-- API -->
+      <rect x="630" y="30" width="160" height="180" rx="12" fill="#FEF3C7" stroke="#F59E0B" stroke-width="2"/>
+      <text x="710" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#0F172A">Spring Boot 3.2</text>
+      <text x="710" y="72" text-anchor="middle" font-size="8" fill="#92400E">Java 17</text>
+      <rect x="645" y="82" width="130" height="18" rx="3" fill="#FDE68A"/><text x="710" y="94" text-anchor="middle" font-size="7" fill="#92400E">Auth + Rate Limiting</text>
+      <rect x="645" y="104" width="130" height="18" rx="3" fill="#FDE68A"/><text x="710" y="116" text-anchor="middle" font-size="7" fill="#92400E">11 Controllers / 9 Services</text>
+      <rect x="645" y="126" width="130" height="18" rx="3" fill="#FDE68A"/><text x="710" y="138" text-anchor="middle" font-size="7" fill="#92400E">12 JPA Repositories</text>
+      <rect x="645" y="148" width="130" height="18" rx="3" fill="#FDE68A"/><text x="710" y="160" text-anchor="middle" font-size="7" fill="#92400E">DeepSeek AI Integration</text>
+      <rect x="645" y="170" width="130" height="18" rx="3" fill="#FCD34D"/><text x="710" y="182" text-anchor="middle" font-size="7" font-weight="600" fill="#92400E">OpenAPI / Swagger</text>
+
+      <!-- Arrow API → Frontend -->
+      <line x1="790" y1="120" x2="815" y2="120" stroke="#94A3B8" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Frontend -->
+      <rect x="820" y="50" width="130" height="140" rx="12" fill="#F3E8FF" stroke="#8B5CF6" stroke-width="2"/>
+      <text x="885" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#0F172A">React 19</text>
+      <text x="885" y="95" text-anchor="middle" font-size="8" fill="#5B21B6">TypeScript + Vite</text>
+      <text x="885" y="115" text-anchor="middle" font-size="8" fill="#6B7280">6 pages</text>
+      <text x="885" y="130" text-anchor="middle" font-size="8" fill="#6B7280">Recharts + Leaflet</text>
+      <text x="885" y="145" text-anchor="middle" font-size="8" fill="#6B7280">shadcn/ui</text>
+      <text x="885" y="160" text-anchor="middle" font-size="8" fill="#6B7280">TanStack Table</text>
+
+      <!-- Nginx (wrapping frontend) -->
+      <rect x="812" y="38" width="146" height="205" rx="14" fill="none" stroke="#06B6D4" stroke-width="1.5" stroke-dasharray="6,3"/>
+      <text x="885" y="230" text-anchor="middle" font-size="8" font-weight="600" fill="#06B6D4">Nginx Reverse Proxy</text>
+
+      <!-- Monitoring row -->
+      <rect x="630" y="260" width="100" height="45" rx="8" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.5"/>
+      <text x="680" y="280" text-anchor="middle" font-size="9" font-weight="600" fill="#374151">Prometheus</text>
+      <text x="680" y="293" text-anchor="middle" font-size="7" fill="#6B7280">:9090</text>
+
+      <rect x="745" y="260" width="100" height="45" rx="8" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.5"/>
+      <text x="795" y="280" text-anchor="middle" font-size="9" font-weight="600" fill="#374151">Grafana</text>
+      <text x="795" y="293" text-anchor="middle" font-size="7" fill="#6B7280">:3001</text>
+
+      <!-- Arrow API → Prometheus -->
+      <line x1="710" y1="210" x2="680" y2="260" stroke="#94A3B8" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="730" y1="260" x2="745" y2="260" stroke="#94A3B8" stroke-width="1" marker-end="url(#arrowhead)"/>
+
+      <!-- CI/CD badge -->
+      <rect x="10" y="240" width="160" height="55" rx="10" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.5"/>
+      <text x="90" y="263" text-anchor="middle" font-size="9" font-weight="700" fill="#374151">GitHub Actions CI</text>
+      <text x="90" y="278" text-anchor="middle" font-size="7" fill="#6B7280">Build + Lint + Trivy Scan</text>
+
+      <!-- Arrowhead marker -->
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#94A3B8"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 6 — DOCKER
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.4rem,2.8vw,2.2rem);">7 Docker Services</div>
+  <div class="reveal d1" style="flex:1;display:flex;align-items:center;justify-content:center;">
+    <svg viewBox="0 0 920 400" style="width:100%;max-width:100%;max-height:82vh;font-family:'Inter',sans-serif;">
+      <defs>
+        <marker id="darr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#94A3B8"/></marker>
+        <marker id="darr-r" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#EF4444"/></marker>
+      </defs>
+      <!-- Docker Compose boundary -->
+      <rect x="10" y="10" width="900" height="380" rx="12" fill="none" stroke="#94A3B8" stroke-width="2" stroke-dasharray="8 4"/>
+      <text x="30" y="35" font-size="11" fill="#94A3B8" font-weight="600">docker-compose.yml</text>
+
+      <!-- Row 1: Data layer -->
+      <!-- PostgreSQL -->
+      <rect x="30" y="55" width="170" height="80" rx="8" fill="#EFF6FF" stroke="#3B82F6" stroke-width="2"/>
+      <text x="115" y="78" text-anchor="middle" font-size="13" font-weight="700" fill="#1E40AF">PostgreSQL 16</text>
+      <text x="115" y="95" text-anchor="middle" font-size="10" fill="#6B7280">:5432</text>
+      <text x="115" y="112" text-anchor="middle" font-size="9" fill="#6B7280">14 tables &bull; volumes</text>
+      <text x="115" y="126" text-anchor="middle" font-size="9" fill="#10B981">&#x2713; pg_isready</text>
+
+      <!-- Redis -->
+      <rect x="220" y="55" width="170" height="80" rx="8" fill="#FEF2F2" stroke="#EF4444" stroke-width="2"/>
+      <text x="305" y="78" text-anchor="middle" font-size="13" font-weight="700" fill="#991B1B">Redis 7</text>
+      <text x="305" y="95" text-anchor="middle" font-size="10" fill="#6B7280">:6379</text>
+      <text x="305" y="112" text-anchor="middle" font-size="9" fill="#6B7280">AI cache &bull; rate limits</text>
+      <text x="305" y="126" text-anchor="middle" font-size="9" fill="#10B981">&#x2713; redis-cli ping</text>
+
+      <!-- Row 2: Processing -->
+      <!-- Pipelines -->
+      <rect x="30" y="160" width="170" height="80" rx="8" fill="#ECFDF5" stroke="#10B981" stroke-width="2"/>
+      <text x="115" y="183" text-anchor="middle" font-size="13" font-weight="700" fill="#065F46">Python Pipelines</text>
+      <text x="115" y="200" text-anchor="middle" font-size="10" fill="#6B7280">:8000</text>
+      <text x="115" y="217" text-anchor="middle" font-size="9" fill="#6B7280">6 stages &bull; APScheduler</text>
+      <text x="115" y="231" text-anchor="middle" font-size="9" fill="#10B981">&#x2713; /health</text>
+
+      <!-- Spring Boot API -->
+      <rect x="220" y="160" width="170" height="80" rx="8" fill="#FFFBEB" stroke="#F59E0B" stroke-width="2"/>
+      <text x="305" y="183" text-anchor="middle" font-size="13" font-weight="700" fill="#92400E">Spring Boot API</text>
+      <text x="305" y="200" text-anchor="middle" font-size="10" fill="#6B7280">:8080</text>
+      <text x="305" y="217" text-anchor="middle" font-size="9" fill="#6B7280">25+ endpoints &bull; Java 17</text>
+      <text x="305" y="231" text-anchor="middle" font-size="9" fill="#10B981">&#x2713; /actuator/health</text>
+
+      <!-- Arrows: Pipelines → DB -->
+      <line x1="115" y1="160" x2="115" y2="141" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#darr)" transform="rotate(180 115 150.5)"/>
+      <!-- API → DB -->
+      <line x1="260" y1="160" x2="170" y2="135" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#darr)" transform="rotate(180 215 147.5)"/>
+      <!-- API → Redis (dashed) -->
+      <line x1="350" y1="160" x2="350" y2="141" stroke="#EF4444" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#darr-r)" transform="rotate(180 350 150.5)"/>
+
+      <!-- Row 3: Frontend & Monitoring -->
+      <!-- Nginx / Frontend -->
+      <rect x="430" y="55" width="240" height="80" rx="8" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-dasharray="6 3"/>
+      <text x="550" y="73" text-anchor="middle" font-size="10" fill="#8B5CF6" font-weight="600">Nginx</text>
+      <rect x="445" y="78" width="210" height="48" rx="6" fill="#F5F3FF" stroke="#8B5CF6" stroke-width="1.5"/>
+      <text x="550" y="98" text-anchor="middle" font-size="13" font-weight="700" fill="#5B21B6">React 19 Frontend</text>
+      <text x="550" y="115" text-anchor="middle" font-size="10" fill="#6B7280">:3000 &bull; Vite 8 &bull; TanStack</text>
+      <text x="550" y="129" text-anchor="middle" font-size="9" fill="#10B981">&#x2713; nginx -t</text>
+
+      <!-- Arrow: Frontend → API -->
+      <line x1="470" y1="135" x2="395" y2="175" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#darr)"/>
+
+      <!-- Prometheus -->
+      <rect x="530" y="170" width="170" height="70" rx="8" fill="#F9FAFB" stroke="#94A3B8" stroke-width="2"/>
+      <text x="615" y="193" text-anchor="middle" font-size="13" font-weight="700" fill="#374151">Prometheus</text>
+      <text x="615" y="210" text-anchor="middle" font-size="10" fill="#6B7280">:9090 &bull; scrape 15s</text>
+      <text x="615" y="226" text-anchor="middle" font-size="9" fill="#10B981">&#x2713; /-/healthy</text>
+
+      <!-- Grafana -->
+      <rect x="720" y="170" width="170" height="70" rx="8" fill="#FFF7ED" stroke="#F97316" stroke-width="2"/>
+      <text x="805" y="193" text-anchor="middle" font-size="13" font-weight="700" fill="#9A3412">Grafana</text>
+      <text x="805" y="210" text-anchor="middle" font-size="10" fill="#6B7280">:3001 &bull; dashboards</text>
+      <text x="805" y="226" text-anchor="middle" font-size="9" fill="#10B981">&#x2713; /api/health</text>
+
+      <!-- Arrow: Prometheus → API (scrape) -->
+      <line x1="530" y1="200" x2="395" y2="200" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#darr)" stroke-dasharray="5 3"/>
+      <text x="462" y="194" font-size="8" fill="#94A3B8" text-anchor="middle">scrape</text>
+      <!-- Arrow: Grafana → Prometheus -->
+      <line x1="720" y1="205" x2="706" y2="205" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#darr)"/>
+
+      <!-- Network labels -->
+      <rect x="30" y="270" width="860" height="50" rx="8" fill="#F0FDF4" stroke="#10B981" stroke-width="1.5"/>
+      <text x="460" y="292" text-anchor="middle" font-size="12" font-weight="600" fill="#065F46">&#x2713; Health checks on all 7 services &bull; Automatic restart on failure &bull; Shared Docker network</text>
+      <text x="460" y="308" text-anchor="middle" font-size="10" fill="#6B7280">depends_on with service_healthy &bull; named volumes for persistence &bull; environment-based config</text>
+
+      <!-- Legend -->
+      <rect x="30" y="340" width="12" height="12" rx="3" fill="#EFF6FF" stroke="#3B82F6" stroke-width="1"/>
+      <text x="48" y="350" font-size="9" fill="#6B7280">Data Store</text>
+      <rect x="120" y="340" width="12" height="12" rx="3" fill="#ECFDF5" stroke="#10B981" stroke-width="1"/>
+      <text x="138" y="350" font-size="9" fill="#6B7280">Processing</text>
+      <rect x="210" y="340" width="12" height="12" rx="3" fill="#F5F3FF" stroke="#8B5CF6" stroke-width="1"/>
+      <text x="228" y="350" font-size="9" fill="#6B7280">Frontend</text>
+      <rect x="290" y="340" width="12" height="12" rx="3" fill="#F9FAFB" stroke="#94A3B8" stroke-width="1"/>
+      <text x="308" y="350" font-size="9" fill="#6B7280">Monitoring</text>
+      <line x1="390" y1="346" x2="420" y2="346" stroke="#94A3B8" stroke-width="1.5"/>
+      <text x="428" y="350" font-size="9" fill="#6B7280">Connection</text>
+      <line x1="500" y1="346" x2="530" y2="346" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 3"/>
+      <text x="538" y="350" font-size="9" fill="#6B7280">Optional / cache</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 7 — SECTION: DATA ENGINEERING
+     ==================================================================== -->
+<section class="slide slide--dark" data-theme="dark">
+  <div class="section-center">
+    <div class="slide-label reveal" style="color:var(--emerald);">DATA ENGINEERING</div>
+    <div class="slide-title reveal d1">Data Pipelines</div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 8 — PIPELINE + DATA QUALITY (combined)
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">6-Stage Pipeline &amp; Data Quality</div>
+  <div class="row reveal d1" style="flex:1;align-items:center;gap:1.5rem;">
+    <!-- Left: Compact pipeline -->
+    <div class="col" style="flex:0.5;">
+      <svg viewBox="0 0 220 320" style="width:100%;max-width:200px;font-family:'Inter',sans-serif;">
+        <defs>
+          <marker id="parr" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#94A3B8"/></marker>
+        </defs>
+        <rect x="40" y="5" width="140" height="26" rx="5" fill="#FFF7ED" stroke="#F97316" stroke-width="1.5"/>
+        <text x="110" y="22" text-anchor="middle" font-size="10" font-weight="700" fill="#9A3412">AWS S3</text>
+        <line x1="110" y1="31" x2="110" y2="42" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#parr)"/>
+        <rect x="15" y="46" width="190" height="28" rx="5" fill="#ECFEFF" stroke="#06B6D4" stroke-width="1.5"/>
+        <circle cx="34" cy="60" r="8" fill="#06B6D4"/><text x="34" y="64" text-anchor="middle" font-size="9" font-weight="700" fill="#FFF">1</text>
+        <text x="50" y="64" font-size="9" font-weight="600" fill="#0E7490">Metadata Ingest</text>
+        <line x1="110" y1="74" x2="110" y2="80" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#parr)"/>
+        <rect x="15" y="84" width="190" height="28" rx="5" fill="#EFF6FF" stroke="#3B82F6" stroke-width="1.5"/>
+        <circle cx="34" cy="98" r="8" fill="#3B82F6"/><text x="34" y="102" text-anchor="middle" font-size="9" font-weight="700" fill="#FFF">2</text>
+        <text x="50" y="102" font-size="9" font-weight="600" fill="#1E40AF">Sensor Ingest</text>
+        <line x1="110" y1="112" x2="110" y2="118" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#parr)"/>
+        <rect x="15" y="122" width="190" height="28" rx="5" fill="#ECFDF5" stroke="#10B981" stroke-width="1.5"/>
+        <circle cx="34" cy="136" r="8" fill="#10B981"/><text x="34" y="140" text-anchor="middle" font-size="9" font-weight="700" fill="#FFF">3</text>
+        <text x="50" y="140" font-size="9" font-weight="600" fill="#065F46">Quality Check</text>
+        <line x1="110" y1="150" x2="110" y2="156" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#parr)"/>
+        <rect x="15" y="160" width="190" height="28" rx="5" fill="#FEF2F2" stroke="#EF4444" stroke-width="1.5"/>
+        <circle cx="34" cy="174" r="8" fill="#EF4444"/><text x="34" y="178" text-anchor="middle" font-size="9" font-weight="700" fill="#FFF">4</text>
+        <text x="50" y="178" font-size="9" font-weight="600" fill="#991B1B">Anomaly Detection</text>
+        <line x1="110" y1="188" x2="110" y2="194" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#parr)"/>
+        <rect x="15" y="198" width="190" height="28" rx="5" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1.5"/>
+        <circle cx="34" cy="212" r="8" fill="#F59E0B"/><text x="34" y="216" text-anchor="middle" font-size="9" font-weight="700" fill="#FFF">5</text>
+        <text x="50" y="216" font-size="9" font-weight="600" fill="#92400E">Incident Aggregation</text>
+        <line x1="110" y1="226" x2="110" y2="232" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#parr)"/>
+        <rect x="15" y="236" width="190" height="28" rx="5" fill="#F5F3FF" stroke="#8B5CF6" stroke-width="1.5"/>
+        <circle cx="34" cy="250" r="8" fill="#8B5CF6"/><text x="34" y="254" text-anchor="middle" font-size="9" font-weight="700" fill="#FFF">6</text>
+        <text x="50" y="254" font-size="9" font-weight="600" fill="#5B21B6">Daily Reports</text>
+        <rect x="15" y="278" width="190" height="22" rx="4" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+        <text x="110" y="293" text-anchor="middle" font-size="8" fill="#6B7280">Idempotent &bull; Incremental &bull; APScheduler</text>
+      </svg>
+    </div>
+    <!-- Right: clean vertical list -->
+    <div class="col" style="flex:1;display:flex;flex-direction:column;gap:0.75rem;font-size:clamp(0.68rem,0.95vw,0.82rem);color:var(--text);line-height:1.6;">
+      <div class="reveal d2">
+        <div style="font-weight:700;font-size:clamp(0.78rem,1.1vw,0.95rem);color:var(--dark);margin-bottom:0.3rem;">Tag Parsing</div>
+        <div style="font-family:var(--mono);font-size:clamp(0.65rem,0.85vw,0.78rem);color:var(--dark);margin-bottom:0.15rem;">WP98FA99B8.TDINIRA51.act_pwt</div>
+        <div style="color:var(--muted);">Parquet column names parsed into Park ID, Turbine ID, and Sensor suffix. Integer values (999.0, 0.0) detected as sensor error codes.</div>
+      </div>
+      <div style="height:1px;background:var(--border);"></div>
+      <div class="reveal d3">
+        <div style="font-weight:700;font-size:clamp(0.78rem,1.1vw,0.95rem);color:var(--dark);margin-bottom:0.3rem;">Data Quality</div>
+        <div style="color:var(--muted);">7 validation rules run on every reading: null check, negative power, temperature range, wind range, power capacity, duplicate timestamps, sparse data. Each record scored as <strong style="color:var(--emerald);">OK</strong>, <strong style="color:var(--amber);">DEGRADED</strong>, or <strong style="color:var(--red);">SUSPECT</strong>.</div>
+      </div>
+      <div style="height:1px;background:var(--border);"></div>
+      <div class="reveal d4">
+        <div style="font-weight:700;font-size:clamp(0.78rem,1.1vw,0.95rem);color:var(--dark);margin-bottom:0.3rem;">Anomaly Detection</div>
+        <div style="color:var(--muted);">4 SQL detectors identify HIGH_WIND_ZERO_POWER, DATA_GAP, TEMPERATURE_SPIKE, and SUSPECT_DATA. Anomalies clustered into actionable incidents per turbine.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 10 — DATA QUALITY
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.4rem,2.8vw,2.2rem);">7 Validation Rules</div>
+  <div class="reveal d1" style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+    <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:0.45rem;font-size:clamp(0.68rem,0.95vw,0.82rem);color:var(--text);line-height:1.5;">
+      <li style="padding:0.4rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">Null Value Check</strong> <span style="color:var(--muted);font-size:0.9em;">(WARNING)</span> &mdash; Detects missing or null sensor readings in active_power, wind_speed, and temperature fields. Flags records where critical measurements are absent.</li>
+      <li style="padding:0.4rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">Negative Power</strong> <span style="color:var(--muted);font-size:0.9em;">(WARNING)</span> &mdash; Flags active_power &lt; 0. Small negatives may indicate parasitic load; large negatives suggest sensor malfunction.</li>
+      <li style="padding:0.4rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">Temperature Range</strong> <span style="color:var(--muted);font-size:0.9em;">(ERROR)</span> &mdash; Validates gearbox and bearing temps within &ndash;40&deg;C to 150&deg;C physical bounds. Outside this range indicates sensor failure.</li>
+      <li style="padding:0.4rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">Wind Speed Range</strong> <span style="color:var(--muted);font-size:0.9em;">(WARNING)</span> &mdash; Checks wind_speed between 0 and 60 m/s. Values beyond cut-out speed (25 m/s) flagged for review.</li>
+      <li style="padding:0.4rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">Power Exceeds Capacity</strong> <span style="color:var(--muted);font-size:0.9em;">(WARNING)</span> &mdash; Cross-references active_power against turbine_models.rated_power. Power exceeding 110% of rated capacity signals data issue.</li>
+      <li style="padding:0.4rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">Duplicate Timestamps</strong> <span style="color:var(--muted);font-size:0.9em;">(INFO)</span> &mdash; Identifies duplicate (turbine_id, timestamp) pairs. Keeps latest record, logs duplicates for audit trail.</li>
+      <li style="padding:0.4rem 0;"><strong style="color:var(--dark);">Sparse Data Gaps</strong> <span style="color:var(--muted);font-size:0.9em;">(WARNING)</span> &mdash; Detects periods with &lt; 50% expected readings. Indicates communication failures or unplanned turbine downtime.</li>
+    </ul>
+    <div class="reveal d2" style="display:flex;gap:1.5rem;margin-top:0.6rem;font-size:clamp(0.65rem,0.9vw,0.8rem);font-weight:600;">
+      <span style="color:var(--emerald);">OK &mdash; 0% errors</span>
+      <span style="color:var(--amber);">DEGRADED &mdash; 0&ndash;50% errors</span>
+      <span style="color:var(--red);">SUSPECT &mdash; &gt;50% errors</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 11 — ANOMALY DETECTION
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.4rem,2.8vw,2.2rem);">4 SQL-Based Anomaly Detectors</div>
+  <div class="reveal d1" style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+    <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:0.6rem;font-size:clamp(0.68rem,0.95vw,0.82rem);color:var(--text);line-height:1.5;">
+      <li style="padding:0.5rem 0;border-bottom:1px solid var(--border);">
+        <strong style="color:var(--dark);font-size:clamp(0.75rem,1.05vw,0.9rem);">HIGH_WIND_ZERO_POWER</strong><br>
+        <span style="color:var(--muted);">Detects when wind_speed &gt; 3.5 m/s but active_power = 0. Indicates potential turbine failure, brake engagement, or grid disconnection. Uses a 15-minute rolling window query joining sensor_readings with turbine status.</span>
+      </li>
+      <li style="padding:0.5rem 0;border-bottom:1px solid var(--border);">
+        <strong style="color:var(--dark);font-size:clamp(0.75rem,1.05vw,0.9rem);">DATA_GAP</strong><br>
+        <span style="color:var(--muted);">Identifies gaps &gt; 30 minutes in sensor readings using LAG() window function over timestamps. Signals SCADA communication failures, network issues, or unplanned turbine shutdowns.</span>
+      </li>
+      <li style="padding:0.5rem 0;border-bottom:1px solid var(--border);">
+        <strong style="color:var(--dark);font-size:clamp(0.75rem,1.05vw,0.9rem);">TEMPERATURE_SPIKE</strong><br>
+        <span style="color:var(--muted);">Flags gearbox or bearing temperatures exceeding 80&deg;C, using window functions to detect &gt; 15&deg;C change within 30 minutes. Critical for preventing mechanical failure.</span>
+      </li>
+      <li style="padding:0.5rem 0;">
+        <strong style="color:var(--dark);font-size:clamp(0.75rem,1.05vw,0.9rem);">SUSPECT_DATA</strong><br>
+        <span style="color:var(--muted);">Promotes any reading with quality_flag = SUSPECT (&gt; 50% validation errors) to an anomaly. Catches systemic data quality issues that individual rules might miss when combined.</span>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 12 — SECTION: DATA LAYER
+     ==================================================================== -->
+<section class="slide slide--dark" data-theme="dark">
+  <div class="section-center">
+    <div class="slide-label reveal" style="color:var(--blue);">DATA LAYER</div>
+    <div class="slide-title reveal d1">Database Design</div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 13 — DATABASE
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">PostgreSQL 16 &mdash; 14 Tables</div>
+  <div class="reveal d1" style="flex:1;display:flex;align-items:center;justify-content:center;">
+    <svg viewBox="0 0 960 420" style="width:100%;max-width:100%;max-height:78vh;font-family:'Inter',sans-serif;">
+      <defs>
+        <marker id="dbArr" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 6 2.5, 0 5" fill="#94A3B8"/></marker>
+      </defs>
+
+      <!-- Core Domain (left column) -->
+      <rect x="10" y="8" width="220" height="200" rx="8" fill="#EFF6FF" stroke="#3B82F6" stroke-width="2"/>
+      <text x="120" y="30" text-anchor="middle" font-size="11" font-weight="700" fill="#1E40AF">Core Domain</text>
+      <!-- parks -->
+      <rect x="25" y="40" width="190" height="46" rx="5" fill="#DBEAFE" stroke="#93C5FD" stroke-width="1"/>
+      <text x="35" y="56" font-size="10" font-weight="700" fill="#1E40AF">parks</text>
+      <text x="35" y="70" font-size="7.5" fill="#6B7280">id, name, location (lat/lng), timezone</text>
+      <text x="35" y="80" font-size="7.5" fill="#6B7280">capacity_mw, turbine_count, tenant_id</text>
+      <!-- turbines -->
+      <rect x="25" y="92" width="190" height="46" rx="5" fill="#DBEAFE" stroke="#93C5FD" stroke-width="1"/>
+      <text x="35" y="108" font-size="10" font-weight="700" fill="#1E40AF">turbines</text>
+      <text x="35" y="122" font-size="7.5" fill="#6B7280">id, park_id (FK), model_id (FK)</text>
+      <text x="35" y="132" font-size="7.5" fill="#6B7280">location, commissioned_date, status</text>
+      <!-- turbine_models -->
+      <rect x="25" y="144" width="190" height="46" rx="5" fill="#DBEAFE" stroke="#93C5FD" stroke-width="1"/>
+      <text x="35" y="160" font-size="10" font-weight="700" fill="#1E40AF">turbine_models</text>
+      <text x="35" y="174" font-size="7.5" fill="#6B7280">id, manufacturer, rated_power_kw</text>
+      <text x="35" y="184" font-size="7.5" fill="#6B7280">rotor_diameter, hub_height, cut_in/out</text>
+
+      <!-- Sensor Data (middle column) -->
+      <rect x="260" y="8" width="230" height="200" rx="8" fill="#ECFDF5" stroke="#10B981" stroke-width="2"/>
+      <text x="375" y="30" text-anchor="middle" font-size="11" font-weight="700" fill="#065F46">Sensor Data</text>
+      <!-- sensor_readings_15min -->
+      <rect x="275" y="40" width="200" height="56" rx="5" fill="#D1FAE5" stroke="#6EE7B7" stroke-width="1"/>
+      <text x="285" y="56" font-size="10" font-weight="700" fill="#065F46">sensor_readings_15min</text>
+      <text x="285" y="70" font-size="7.5" fill="#6B7280">turbine_id (FK), timestamp, active_power</text>
+      <text x="285" y="80" font-size="7.5" fill="#6B7280">wind_speed, gearbox/bearing_temp</text>
+      <text x="285" y="90" font-size="7.5" fill="#10B981" font-weight="600">quality_flag (OK/DEGRADED/SUSPECT)</text>
+      <!-- sensor_readings_hourly -->
+      <rect x="275" y="102" width="200" height="42" rx="5" fill="#D1FAE5" stroke="#6EE7B7" stroke-width="1"/>
+      <text x="285" y="118" font-size="10" font-weight="700" fill="#065F46">sensor_readings_hourly</text>
+      <text x="285" y="132" font-size="7.5" fill="#6B7280">Aggregated rollups: avg, min, max, count</text>
+      <!-- meteo_data -->
+      <rect x="275" y="150" width="200" height="42" rx="5" fill="#D1FAE5" stroke="#6EE7B7" stroke-width="1"/>
+      <text x="285" y="166" font-size="10" font-weight="700" fill="#065F46">meteo_data</text>
+      <text x="285" y="180" font-size="7.5" fill="#6B7280">park_id (FK), timestamp, ext_temp, humidity</text>
+
+      <!-- Analytics (right top) -->
+      <rect x="520" y="8" width="220" height="200" rx="8" fill="#FFFBEB" stroke="#F59E0B" stroke-width="2"/>
+      <text x="630" y="30" text-anchor="middle" font-size="11" font-weight="700" fill="#92400E">Analytics</text>
+      <rect x="535" y="40" width="190" height="42" rx="5" fill="#FEF3C7" stroke="#FCD34D" stroke-width="1"/>
+      <text x="545" y="56" font-size="10" font-weight="700" fill="#92400E">anomalies</text>
+      <text x="545" y="70" font-size="7.5" fill="#6B7280">turbine_id, type, severity, timestamp, value</text>
+      <rect x="535" y="88" width="190" height="42" rx="5" fill="#FEF3C7" stroke="#FCD34D" stroke-width="1"/>
+      <text x="545" y="104" font-size="10" font-weight="700" fill="#92400E">incidents</text>
+      <text x="545" y="118" font-size="7.5" fill="#6B7280">turbine_id, type, status, anomaly_count</text>
+      <rect x="535" y="136" width="190" height="22" rx="5" fill="#FEF3C7" stroke="#FCD34D" stroke-width="1"/>
+      <text x="545" y="151" font-size="9" font-weight="600" fill="#92400E">daily_reports</text>
+      <rect x="535" y="162" width="190" height="22" rx="5" fill="#FEF3C7" stroke="#FCD34D" stroke-width="1"/>
+      <text x="545" y="177" font-size="9" font-weight="600" fill="#92400E">turbine_daily_summary</text>
+
+      <!-- System (far right) -->
+      <rect x="770" y="8" width="180" height="200" rx="8" fill="#F9FAFB" stroke="#94A3B8" stroke-width="2"/>
+      <text x="860" y="30" text-anchor="middle" font-size="11" font-weight="700" fill="#374151">System</text>
+      <rect x="785" y="40" width="150" height="22" rx="4" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1"/>
+      <text x="795" y="55" font-size="9" font-weight="600" fill="#374151">pipeline_runs</text>
+      <rect x="785" y="68" width="150" height="22" rx="4" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1"/>
+      <text x="795" y="83" font-size="9" font-weight="600" fill="#374151">tenants</text>
+      <rect x="785" y="96" width="150" height="22" rx="4" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1"/>
+      <text x="795" y="111" font-size="9" font-weight="600" fill="#374151">tenant_park_access</text>
+      <rect x="785" y="124" width="150" height="22" rx="4" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1"/>
+      <text x="795" y="139" font-size="9" font-weight="600" fill="#374151">ai_report_cache</text>
+      <rect x="785" y="152" width="150" height="22" rx="4" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1"/>
+      <text x="795" y="167" font-size="9" font-weight="600" fill="#374151">data_quality_log</text>
+
+      <!-- Relationships -->
+      <!-- parks → turbines -->
+      <line x1="120" y1="86" x2="120" y2="92" stroke="#3B82F6" stroke-width="1.5" marker-end="url(#dbArr)"/>
+      <!-- turbines → readings -->
+      <line x1="215" y1="115" x2="275" y2="68" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#dbArr)"/>
+      <!-- turbines → anomalies -->
+      <path d="M 215 115 Q 370 250 535 60" fill="none" stroke="#F59E0B" stroke-width="1.5" marker-end="url(#dbArr)" stroke-dasharray="5 3"/>
+      <!-- readings → anomalies -->
+      <line x1="475" y1="68" x2="535" y2="60" stroke="#94A3B8" stroke-width="1.2" marker-end="url(#dbArr)"/>
+
+      <!-- Bottom: Index & performance info -->
+      <rect x="10" y="230" width="940" height="50" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="30" y="252" font-size="10" font-weight="700" fill="#0F172A">Key Indexes &amp; Performance</text>
+      <text x="30" y="270" font-size="8.5" fill="#6B7280">&#x2022; Composite index on (turbine_id, timestamp) for sensor queries &ensp;&#x2022; Partial index on anomalies WHERE status = 'OPEN' for active alerts</text>
+
+      <rect x="10" y="285" width="940" height="50" rx="8" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1"/>
+      <text x="30" y="307" font-size="8.5" fill="#6B7280">&#x2022; Partial index on quality_flag = 'SUSPECT' for fast quality queries &ensp;&#x2022; Index on incident (turbine_id, type) for aggregation &ensp;&#x2022; tenant_park_access for multi-tenant isolation</text>
+      <text x="30" y="325" font-size="8.5" fill="#6B7280">&#x2022; 15+ indexes total including covering indexes for common queries &ensp;&#x2022; Schema managed via Flyway migrations &ensp;&#x2022; Seed data for 3 parks, 30 turbines</text>
+
+      <!-- Stats bar -->
+      <rect x="10" y="348" width="940" height="38" rx="8" fill="#EFF6FF" stroke="#93C5FD" stroke-width="1"/>
+      <text x="140" y="372" text-anchor="middle" font-size="12" font-weight="800" fill="#1E40AF">14 Tables</text>
+      <text x="340" y="372" text-anchor="middle" font-size="12" font-weight="800" fill="#1E40AF">15+ Indexes</text>
+      <text x="540" y="372" text-anchor="middle" font-size="12" font-weight="800" fill="#10B981">Partial Indexes</text>
+      <text x="740" y="372" text-anchor="middle" font-size="12" font-weight="800" fill="#92400E">Flyway Migrations</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 13b — REDIS CACHE
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">Redis 7 &mdash; Caching &amp; Rate Limiting</div>
+  <div class="reveal d1" style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+    <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:0.5rem;font-size:clamp(0.68rem,0.95vw,0.82rem);color:var(--text);line-height:1.6;">
+      <li style="padding:0.4rem 0;border-bottom:1px solid var(--border);">
+        <strong style="color:var(--dark);font-size:clamp(0.75rem,1.05vw,0.9rem);">AI Report Caching</strong><br>
+        <span style="color:var(--muted);">Second-level cache for DeepSeek LLM responses. Redis TTL of 5 minutes sits between the 30-minute database cache and the client. Reduces AI API calls by ~95% during traffic spikes.</span>
+      </li>
+      <li style="padding:0.4rem 0;border-bottom:1px solid var(--border);">
+        <strong style="color:var(--dark);font-size:clamp(0.75rem,1.05vw,0.9rem);">Rate Limiting Counters</strong><br>
+        <span style="color:var(--muted);">Token bucket implementation using Redis INCR and EXPIRE. Each API key gets a configurable request quota tracked as Redis keys with automatic expiration.</span>
+      </li>
+      <li style="padding:0.4rem 0;border-bottom:1px solid var(--border);">
+        <strong style="color:var(--dark);font-size:clamp(0.75rem,1.05vw,0.9rem);">Session &amp; Config Store</strong><br>
+        <span style="color:var(--muted);">Stores transient application state and configuration values. Spring Boot auto-configured with RedisTemplate and Jackson serialization (JavaTimeModule for LocalDateTime).</span>
+      </li>
+      <li style="padding:0.4rem 0;">
+        <strong style="color:var(--dark);font-size:clamp(0.75rem,1.05vw,0.9rem);">Infrastructure</strong><br>
+        <span style="color:var(--muted);">Port 6379, running in Docker with health check via redis-cli ping. Connected to Spring Boot API via dashed dependency (optional — app degrades gracefully without Redis).</span>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 14 — SECTION: SPRING BOOT
+     ==================================================================== -->
+<section class="slide slide--dark" data-theme="dark">
+  <div class="section-center">
+    <div class="slide-label reveal" style="color:var(--amber);">SPRING BOOT 3.2</div>
+    <div class="slide-title reveal d1">Backend API</div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 15 — API ENDPOINTS + SWAGGER
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">25+ REST Endpoints &mdash; OpenAPI / Swagger</div>
+  <div class="reveal d1" style="flex:1;display:flex;align-items:center;justify-content:center;">
+    <svg viewBox="0 0 960 380" style="width:100%;max-width:100%;max-height:75vh;font-family:'Inter',sans-serif;">
+      <!-- Endpoint groups as layered bars -->
+      <!-- Parks & Turbines -->
+      <rect x="10" y="10" width="480" height="50" rx="8" fill="#EFF6FF" stroke="#3B82F6" stroke-width="2"/>
+      <text x="30" y="30" font-size="12" font-weight="700" fill="#1E40AF">Parks &amp; Turbines</text>
+      <text x="30" y="47" font-size="7.5" fill="#6B7280">/parks &bull; /parks/{id} &bull; /parks/{id}/turbines &bull; /turbines/{id} &bull; /fleet-overview &bull; /search &bull; /models</text>
+      <rect x="450" y="17" width="32" height="28" rx="6" fill="#3B82F6"/>
+      <text x="466" y="36" text-anchor="middle" font-size="13" font-weight="800" fill="#FFF">7</text>
+
+      <!-- Sensor Data -->
+      <rect x="10" y="68" width="480" height="50" rx="8" fill="#ECFDF5" stroke="#10B981" stroke-width="2"/>
+      <text x="30" y="88" font-size="12" font-weight="700" fill="#065F46">Sensor Data</text>
+      <text x="30" y="105" font-size="7.5" fill="#6B7280">/turbines/{id}/readings?from&amp;to&amp;interval &bull; /turbines/{id}/readings/hourly &bull; Filterable by date range</text>
+      <rect x="450" y="76" width="32" height="28" rx="6" fill="#10B981"/>
+      <text x="466" y="95" text-anchor="middle" font-size="13" font-weight="800" fill="#FFF">2</text>
+
+      <!-- Anomalies & Incidents -->
+      <rect x="10" y="126" width="480" height="50" rx="8" fill="#FEF2F2" stroke="#EF4444" stroke-width="2"/>
+      <text x="30" y="146" font-size="12" font-weight="700" fill="#991B1B">Anomalies &amp; Incidents</text>
+      <text x="30" y="163" font-size="7.5" fill="#6B7280">/anomalies?type&amp;severity &bull; /anomalies/{id} &bull; /incidents &bull; PATCH /incidents/{id}/status &bull; /stats/anomalies</text>
+      <rect x="450" y="134" width="32" height="28" rx="6" fill="#EF4444"/>
+      <text x="466" y="153" text-anchor="middle" font-size="13" font-weight="800" fill="#FFF">7</text>
+
+      <!-- Reports & Pipelines -->
+      <rect x="10" y="184" width="480" height="50" rx="8" fill="#FFFBEB" stroke="#F59E0B" stroke-width="2"/>
+      <text x="30" y="204" font-size="12" font-weight="700" fill="#92400E">Reports &amp; Pipelines</text>
+      <text x="30" y="221" font-size="7.5" fill="#6B7280">/reports/daily?date &bull; /reports/turbine/{id}/summary &bull; /pipeline-runs?status</text>
+      <rect x="450" y="192" width="32" height="28" rx="6" fill="#F59E0B"/>
+      <text x="466" y="211" text-anchor="middle" font-size="13" font-weight="800" fill="#FFF">3</text>
+
+      <!-- AI Insights -->
+      <rect x="10" y="242" width="480" height="50" rx="8" fill="#F5F3FF" stroke="#8B5CF6" stroke-width="2"/>
+      <text x="30" y="262" font-size="12" font-weight="700" fill="#5B21B6">AI Insights</text>
+      <text x="30" y="279" font-size="7.5" fill="#6B7280">/ai/fleet-report &bull; /ai/park/{id} &bull; /ai/turbine/{id} &bull; /ai/anomaly/{id}/explain</text>
+      <rect x="450" y="250" width="32" height="28" rx="6" fill="#8B5CF6"/>
+      <text x="466" y="269" text-anchor="middle" font-size="13" font-weight="800" fill="#FFF">4</text>
+
+      <!-- System -->
+      <rect x="10" y="300" width="480" height="44" rx="8" fill="#F9FAFB" stroke="#94A3B8" stroke-width="2"/>
+      <text x="30" y="320" font-size="12" font-weight="700" fill="#374151">System</text>
+      <text x="30" y="336" font-size="7.5" fill="#6B7280">/health &bull; /actuator/metrics &bull; /config &bull; /swagger-ui.html</text>
+      <rect x="450" y="308" width="32" height="24" rx="6" fill="#94A3B8"/>
+      <text x="466" y="325" text-anchor="middle" font-size="13" font-weight="800" fill="#FFF">4</text>
+
+      <!-- Right side: Security layers & architecture -->
+      <rect x="520" y="10" width="430" height="168" rx="10" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5"/>
+      <text x="735" y="32" text-anchor="middle" font-size="11" font-weight="700" fill="#0F172A">Request Flow (6 Security Layers)</text>
+      <!-- Filter chain -->
+      <rect x="520" y="42" width="120" height="26" rx="5" fill="#ECFEFF" stroke="#06B6D4" stroke-width="1.5"/>
+      <text x="580" y="59" text-anchor="middle" font-size="8" font-weight="600" fill="#0E7490">CorrelationIdFilter</text>
+      <text x="646" y="59" font-size="10" fill="#94A3B8">&rarr;</text>
+      <rect x="656" y="42" width="120" height="26" rx="5" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1.5"/>
+      <text x="716" y="59" text-anchor="middle" font-size="8" font-weight="600" fill="#92400E">ApiKeyAuthFilter</text>
+      <text x="782" y="59" font-size="10" fill="#94A3B8">&rarr;</text>
+      <rect x="792" y="42" width="140" height="26" rx="5" fill="#FEF2F2" stroke="#EF4444" stroke-width="1.5"/>
+      <text x="862" y="59" text-anchor="middle" font-size="8" font-weight="600" fill="#991B1B">RateLimitFilter (Redis)</text>
+
+      <text x="725" y="85" text-anchor="middle" font-size="10" fill="#94A3B8">&darr;</text>
+
+      <rect x="560" y="92" width="330" height="26" rx="5" fill="#ECFDF5" stroke="#10B981" stroke-width="1.5"/>
+      <text x="725" y="109" text-anchor="middle" font-size="9" font-weight="600" fill="#065F46">Controller &rarr; Service &rarr; Repository (JPA)</text>
+
+      <!-- Security bullets -->
+      <text x="520" y="140" font-size="8" fill="#6B7280">&#x2022; Multi-tenant isolation via TenantContext</text>
+      <text x="520" y="153" font-size="8" fill="#6B7280">&#x2022; CORS whitelist &bull; Input validation &bull; Nginx headers</text>
+      <text x="520" y="166" font-size="8" fill="#6B7280">&#x2022; Externalized secrets &bull; Correlation IDs for tracing</text>
+
+      <!-- Architecture stats -->
+      <rect x="520" y="190" width="430" height="170" rx="10" fill="#FFFBEB" stroke="#FDE68A" stroke-width="1.5"/>
+      <text x="725" y="212" text-anchor="middle" font-size="11" font-weight="700" fill="#0F172A">Spring Boot Architecture</text>
+
+      <text x="520" y="236" font-size="26" font-weight="900" fill="#3B82F6">11</text>
+      <text x="556" y="236" font-size="10" fill="#6B7280">Controllers</text>
+      <text x="640" y="236" font-size="26" font-weight="900" fill="#10B981">9</text>
+      <text x="660" y="236" font-size="10" fill="#6B7280">Services</text>
+      <text x="740" y="236" font-size="26" font-weight="900" fill="#F59E0B">12</text>
+      <text x="776" y="236" font-size="10" fill="#6B7280">JPA Entities</text>
+      <text x="870" y="236" font-size="26" font-weight="900" fill="#8B5CF6">12</text>
+      <text x="906" y="228" font-size="10" fill="#6B7280">Repos</text>
+
+      <!-- Key patterns -->
+      <text x="520" y="268" font-size="8.5" font-weight="600" fill="#374151">Key Architecture Patterns:</text>
+      <text x="520" y="283" font-size="8" fill="#6B7280">&#x2022; Layered arch: Controller &rarr; Service &rarr; Repository &rarr; PostgreSQL</text>
+      <text x="520" y="296" font-size="8" fill="#6B7280">&#x2022; DTO mapping with MapStruct-style manual converters</text>
+      <text x="520" y="309" font-size="8" fill="#6B7280">&#x2022; Global exception handler with structured error responses</text>
+      <text x="520" y="322" font-size="8" fill="#6B7280">&#x2022; Redis caching for AI responses &amp; rate limiting counters</text>
+      <text x="520" y="335" font-size="8" fill="#6B7280">&#x2022; Jackson LocalDateTime serialization with JavaTimeModule</text>
+      <text x="520" y="348" font-size="8" fill="#6B7280">&#x2022; OpenAPI 3.0 auto-generated docs at /swagger-ui.html</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 17 — AI INTEGRATION
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">AI-Powered Insights</div>
+  <div class="row" style="flex:1;align-items:flex-start;gap:1.5rem;">
+    <div class="col" style="flex:1;">
+      <div class="reveal d1" style="font-size:clamp(0.68rem,0.95vw,0.82rem);color:var(--text);line-height:1.6;">
+        <div style="font-weight:700;font-size:clamp(0.78rem,1.1vw,0.95rem);color:var(--dark);margin-bottom:0.4rem;">4 AI Endpoints</div>
+        <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:0.35rem;">
+          <li style="padding:0.3rem 0;border-bottom:1px solid var(--border);">
+            <strong style="color:var(--dark);">Fleet Report</strong> <span style="font-family:var(--mono);font-size:0.85em;color:var(--muted);">/ai/fleet-report</span><br>
+            <span style="color:var(--muted);">Cross-park analysis with production trends, common anomaly patterns, and fleet-wide recommendations</span>
+          </li>
+          <li style="padding:0.3rem 0;border-bottom:1px solid var(--border);">
+            <strong style="color:var(--dark);">Park Analysis</strong> <span style="font-family:var(--mono);font-size:0.85em;color:var(--muted);">/ai/park/{id}</span><br>
+            <span style="color:var(--muted);">Park-level performance summary with underperforming turbine identification</span>
+          </li>
+          <li style="padding:0.3rem 0;border-bottom:1px solid var(--border);">
+            <strong style="color:var(--dark);">Turbine Insight</strong> <span style="font-family:var(--mono);font-size:0.85em;color:var(--muted);">/ai/turbine/{id}</span><br>
+            <span style="color:var(--muted);">Individual turbine health assessment with sensor trend analysis</span>
+          </li>
+          <li style="padding:0.3rem 0;">
+            <strong style="color:var(--dark);">Anomaly Explain</strong> <span style="font-family:var(--mono);font-size:0.85em;color:var(--muted);">/ai/anomaly/{id}/explain</span><br>
+            <span style="color:var(--muted);">Natural language explanation of why an anomaly was flagged, with recommended actions</span>
+          </li>
+        </ul>
+        <div style="margin-top:0.5rem;font-size:clamp(0.6rem,0.82vw,0.72rem);color:var(--muted);font-family:var(--mono);">
+          Model: deepseek-chat &ensp;|&ensp; Temp: 0.3 &ensp;|&ensp; Max: 4096 tokens &ensp;|&ensp; Timeout: 30s
+        </div>
+      </div>
+    </div>
+    <div class="col" style="flex:1;">
+      <div class="placeholder reveal d2" style="flex:1;min-height:50vh;">[INSERT SCREENSHOT: AI Report]</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 17b — RESILIENCE & MONITORING
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">Resilience &amp; Monitoring</div>
+  <div class="reveal d1" style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+    <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:clamp(0.68rem,0.95vw,0.82rem);color:var(--text);line-height:1.6;">
+      <div style="font-weight:700;font-size:clamp(0.78rem,1.1vw,0.95rem);color:var(--dark);margin-bottom:0.2rem;">AI Resilience Patterns</div>
+      <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:0.3rem;">
+        <li style="padding:0.3rem 0;border-bottom:1px solid var(--border);"><strong>Circuit Breaker</strong> &mdash; 5-failure threshold opens circuit for 60s recovery. Prevents cascading failures when DeepSeek API is down.</li>
+        <li style="padding:0.3rem 0;border-bottom:1px solid var(--border);"><strong>3-Layer Caching</strong> &mdash; DB cache (ai_report_cache table, 30min TTL) &rarr; Redis cache (5min TTL) &rarr; Client-side cache. Reduces API calls by ~95%.</li>
+        <li style="padding:0.3rem 0;border-bottom:1px solid var(--border);"><strong>Rate Limiting</strong> &mdash; Token bucket algorithm per API key, backed by Redis counters. Prevents abuse and controls costs.</li>
+        <li style="padding:0.3rem 0;"><strong>Graceful Degradation</strong> &mdash; When AI service is unavailable, returns cached reports or "analysis unavailable" instead of failing.</li>
+      </ul>
+      <div style="height:1px;background:var(--border);margin:0.3rem 0;"></div>
+      <div style="font-weight:700;font-size:clamp(0.78rem,1.1vw,0.95rem);color:var(--dark);margin-bottom:0.2rem;">Observability Stack</div>
+      <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:0.3rem;">
+        <li style="padding:0.3rem 0;border-bottom:1px solid var(--border);"><strong>Prometheus</strong> &mdash; Scrapes Spring Boot Actuator metrics every 15s: JVM memory, HTTP request latency, HikariCP connections, cache hit rates.</li>
+        <li style="padding:0.3rem 0;border-bottom:1px solid var(--border);"><strong>Grafana</strong> &mdash; Pre-configured dashboards for API performance, database connections, and pipeline run status.</li>
+        <li style="padding:0.3rem 0;border-bottom:1px solid var(--border);"><strong>Spring Boot Actuator</strong> &mdash; /health, /metrics, /info endpoints. Health checks for DB, Redis, and disk space.</li>
+        <li style="padding:0.3rem 0;"><strong>Correlation IDs</strong> &mdash; CorrelationIdFilter assigns UUID to every request. Propagated through logs for end-to-end tracing.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 18 — SECTION: FRONTEND
+     ==================================================================== -->
+<section class="slide slide--dark" data-theme="dark">
+  <div class="section-center">
+    <div class="slide-label reveal" style="color:var(--purple);">REACT 19 + VITE 8</div>
+    <div class="slide-title reveal d1">Frontend</div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 19 — FRONTEND TECH
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">Modern React Dashboard</div>
+  <div class="reveal d1" style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem 2rem;font-size:clamp(0.68rem,0.95vw,0.82rem);color:var(--text);line-height:1.6;">
+      <div style="padding:0.35rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">React 19</strong> &mdash; Latest with concurrent features and RSC support</div>
+      <div style="padding:0.35rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">TypeScript 5.9</strong> &mdash; Strict mode, full type safety across all components</div>
+      <div style="padding:0.35rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">Vite 8</strong> &mdash; Lightning-fast HMR, optimized production builds</div>
+      <div style="padding:0.35rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">Tailwind CSS v4</strong> &mdash; Utility-first styling with design tokens</div>
+      <div style="padding:0.35rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">shadcn/ui v4</strong> &mdash; Accessible, customizable component library</div>
+      <div style="padding:0.35rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">Recharts 3.8</strong> &mdash; Interactive timeseries and bar charts</div>
+      <div style="padding:0.35rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">Leaflet Maps</strong> &mdash; Geospatial turbine/park visualization</div>
+      <div style="padding:0.35rem 0;border-bottom:1px solid var(--border);"><strong style="color:var(--dark);">TanStack Table</strong> &mdash; Sortable, filterable data grids</div>
+    </div>
+    <div class="reveal d2" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.8rem;">
+      <div style="font-weight:600;font-size:clamp(0.65rem,0.88vw,0.78rem);color:var(--muted);margin-right:0.3rem;">6 Pages:</div>
+      <div class="pill" style="background:var(--dark);color:#fff;">/ Dashboard</div>
+      <div class="pill" style="background:var(--dark);color:#fff;">/map</div>
+      <div class="pill" style="background:var(--dark);color:#fff;">/anomalies</div>
+      <div class="pill" style="background:var(--dark);color:#fff;">/reports</div>
+      <div class="pill" style="background:var(--dark);color:#fff;">/pipelines</div>
+      <div class="pill" style="background:var(--dark);color:#fff;">/turbines/:id</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 20 — SCREENSHOT: Dashboard
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">Dashboard</div>
+  <div class="slide-subtitle reveal d1 mb-2">Fleet overview with real-time stats, charts, and alerts</div>
+  <div class="placeholder reveal d2" style="flex:1;">[INSERT SCREENSHOT: localhost:3000/]</div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 21 — SCREENSHOT: Map View
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">Map View</div>
+  <div class="slide-subtitle reveal d1 mb-2">Geospatial view of all wind parks and turbine locations</div>
+  <div class="placeholder reveal d2" style="flex:1;">[INSERT SCREENSHOT: localhost:3000/map]</div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 22 — SCREENSHOT: Anomalies
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">Anomalies</div>
+  <div class="slide-subtitle reveal d1 mb-2">Filterable anomaly list with severity, type, and status tracking</div>
+  <div class="placeholder reveal d2" style="flex:1;">[INSERT SCREENSHOT: localhost:3000/anomalies]</div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 23 — SCREENSHOT: Reports
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">Reports</div>
+  <div class="slide-subtitle reveal d1 mb-2">AI-generated daily reports with fleet and turbine-level insights</div>
+  <div class="placeholder reveal d2" style="flex:1;">[INSERT SCREENSHOT: localhost:3000/reports]</div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 24 — SCREENSHOT: Turbine Detail
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">Turbine Detail</div>
+  <div class="slide-subtitle reveal d1 mb-2">Deep-dive view with sensor timeseries, anomaly history, and AI analysis</div>
+  <div class="placeholder reveal d2" style="flex:1;">[INSERT SCREENSHOT: localhost:3000/turbines/{id}]</div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 25 — MONITORING
+     ==================================================================== -->
+<section class="slide slide--white" data-theme="light">
+  <div class="slide-title reveal" style="font-size:clamp(1.3rem,2.5vw,2rem);">Prometheus + Grafana</div>
+  <div class="grid-6 reveal d1">
+    <div class="card text-center" style="padding:0.5rem;"><code style="font-size:clamp(0.55rem,0.75vw,0.68rem);">jvm_memory_used</code></div>
+    <div class="card text-center" style="padding:0.5rem;"><code style="font-size:clamp(0.55rem,0.75vw,0.68rem);">http_server_requests</code></div>
+    <div class="card text-center" style="padding:0.5rem;"><code style="font-size:clamp(0.55rem,0.75vw,0.68rem);">hikaricp_connections</code></div>
+    <div class="card text-center" style="padding:0.5rem;"><code style="font-size:clamp(0.55rem,0.75vw,0.68rem);">process_cpu_usage</code></div>
+    <div class="card text-center" style="padding:0.5rem;"><code style="font-size:clamp(0.55rem,0.75vw,0.68rem);">cache_gets_total</code></div>
+    <div class="card text-center" style="padding:0.5rem;"><code style="font-size:clamp(0.55rem,0.75vw,0.68rem);">logback_events</code></div>
+  </div>
+  <div class="placeholder reveal d2 mt-2" style="flex:1;">[INSERT SCREENSHOT: Grafana Dashboard]</div>
+</section>
+
+<!-- ====================================================================
+     SLIDE 27 — THANK YOU
+     ==================================================================== -->
+<section class="slide slide--dark" data-theme="dark">
+  <div style="display:flex;align-items:center;flex:1;">
+    <div style="width:5px;height:clamp(100px,18vh,160px);background:var(--orange);border-radius:3px;margin-right:clamp(1.5rem,3vw,2.5rem);flex-shrink:0;" class="reveal"></div>
+    <div>
+      <div class="reveal d1" style="font-size:clamp(2.5rem,6vw,5rem);font-weight:900;letter-spacing:-0.03em;line-height:1;">Thank You</div>
+      <div class="reveal d2" style="font-size:clamp(0.85rem,1.4vw,1.2rem);color:rgba(255,255,255,0.6);margin-top:0.75rem;">WindMon &mdash; Wind Turbine Monitoring Platform</div>
+      <div class="reveal d3" style="font-size:clamp(0.75rem,1.1vw,0.95rem);color:rgba(255,255,255,0.35);margin-top:1.2rem;">Stan Andrei-Cristian &middot; Toader Serban-Valentin &middot; Mirea-Bulubasa Petre Luca</div>
+      <div class="reveal d4" style="font-size:clamp(1rem,1.8vw,1.4rem);font-weight:600;color:var(--orange);margin-top:1.5rem;">Questions?</div>
+    </div>
+  </div>
+</section>
+
+</div><!-- .deck -->
+
+<script>
+(function () {
+  'use strict';
+
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  let current = 0;
+  let transitioning = false;
+
+  function updateUI() {
+    slides.forEach((s, i) => s.classList.toggle('active', i === current));
+    progress.style.width = ((current + 1) / total * 100) + '%';
+    counter.textContent = (current + 1) + ' / ' + total;
+    // Theme-aware counter
+    const theme = slides[current].dataset.theme;
+    counter.classList.toggle('on-dark', theme === 'dark');
+  }
+
+  function go(index) {
+    if (transitioning) return;
+    if (index < 0 || index >= total) return;
+    transitioning = true;
+    current = index;
+    updateUI();
+    setTimeout(function () { transitioning = false; }, 520);
+  }
+
+  function next() { go(current + 1); }
+  function prev() { go(current - 1); }
+
+  // Keyboard
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') { e.preventDefault(); go(0); }
+    else if (e.key === 'End') { e.preventDefault(); go(total - 1); }
+  });
+
+  // Wheel (debounced)
+  let wheelCooldown = false;
+  document.addEventListener('wheel', function (e) {
+    if (wheelCooldown) return;
+    if (Math.abs(e.deltaY) < 15) return;
+    wheelCooldown = true;
+    if (e.deltaY > 0) next(); else prev();
+    setTimeout(function () { wheelCooldown = false; }, 700);
+  }, { passive: true });
+
+  // Touch
+  let touchStartY = 0;
+  let touchStartX = 0;
+  document.addEventListener('touchstart', function (e) {
+    touchStartY = e.changedTouches[0].screenY;
+    touchStartX = e.changedTouches[0].screenX;
+  }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    const dy = e.changedTouches[0].screenY - touchStartY;
+    const dx = e.changedTouches[0].screenX - touchStartX;
+    if (Math.abs(dy) < 40 && Math.abs(dx) < 40) return;
+    if (Math.abs(dy) > Math.abs(dx)) {
+      if (dy < -40) next(); else if (dy > 40) prev();
+    } else {
+      if (dx < -40) next(); else if (dx > 40) prev();
+    }
+  }, { passive: true });
+
+  // Click navigation zones (left 15% = prev, right 15% = next)
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('a, button, input, select, textarea')) return;
+    var x = e.clientX / window.innerWidth;
+    if (x < 0.15) prev();
+    else if (x > 0.85) next();
+  });
+
+  // Init
+  updateUI();
+})();
+</script>
+
+</body>
+</html>
