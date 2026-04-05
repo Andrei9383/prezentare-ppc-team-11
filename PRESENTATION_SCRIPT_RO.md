@@ -4,69 +4,77 @@
 
 ---
 
-## VORBITOR 1: ANDREI (Introducere & Problema) — ~1m 45s (230 cuvinte)
+## VORBITOR 1: ANDREI (Introducere, Problema, API, AI, Frontend, Încheiere) — ~2m 30s
 
 ### ⏱ Slide 1 (15s) — Titlu
-"Bună, sunt Andrei, și sunt aici cu Șerban și Petru din Team 11. Vă prezentăm **WindMon** — o platformă de monitorizare în timp real pentru turbinele eoliene. Acordați-ne 6 minute, și veți vedea cum am construit o soluție completă de inginerie de date care transformă date brute din senzori în informații cu valoare imediată pentru operatorii de energie eoliană."
+"Bună, sunt Andrei, și sunt aici cu Șerban și Luca din Echipa 11. Vă prezentăm **WindMon** — o platformă de monitorizare în timp real pentru turbine eoliene. Acordați-ne 6 minute și veți vedea cum am construit o soluție completă de inginerie de date care transformă date brute din senzori în informații cu valoare imediată pentru operatorii de energie eoliană."
 
 ### ⏱ Slide 2 (45s) — Provocarea
-"Iată problema pe care o rezolvăm: PPC România operează **4 parcuri eoliene** cu **99 turbine**, generând **peste 384.000 de citiri de senzori zilnic**. Fiecare turbină are 8 senzori — putere activă, viteză vânt, temperaturi — transmițând la fiecare 5 minute. Dar până acum, toți acești date stau în AWS S3 ca fișiere Parquet cu **zero vizibilitate în timp real**. Fără detecție de anomalii. Fără alerte. Fără informații utile.
+"Iată problema pe care o rezolvăm: PPC România operează **4 parcuri eoliene** cu **99 de turbine**, generând **peste 384.000 de citiri de la senzori zilnic**. Fiecare turbină are 8 senzori — putere activă, viteza vântului, temperaturi — care transmit la fiecare 5 minute. Dar până acum, toate aceste date stau în AWS S3 ca fișiere Parquet, cu **zero vizibilitate în timp real**. Fără detecție de anomalii. Fără alerte. Fără informații utile.
 
-Deci întrebarea era: Cum procesezi 384K+ de citiri zilnic cu control de calitate în timp real, detecție de anomalii și informații semnificative — totul într-un hackathon?"
+Deci întrebarea era: Cum procesezi peste 384.000 de citiri zilnic, cu control al calității în timp real, detecție de anomalii și informații relevante — totul într-un hackathon?"
 
 ### ⏱ Slide 3 (30s) — Ce Am Construit
-"Am construit o **platformă end-to-end** care ingestionează date brute din S3, execută 7 reguli de validare pentru controlul calității, detectează anomalii folosind SQL, generează informații bazate pe AI, și livrează totul printr-un **dashboard React** cu alerte în timp real, urmărire de anomalii și vizualizare geospațială.
+"Am construit o **platformă end-to-end** care ingestionează date brute din S3, execută 7 reguli de validare pentru controlul calității, detectează anomalii folosind SQL, generează rapoarte bazate pe AI și livrează totul printr-un **dashboard React** cu alerte în timp real, urmărirea anomaliilor și vizualizare geospațială.
 
-Arhitectura gestionează trei surse de date, aplică caching inteligent, integrează AI-ul DeepSeek și include monitorizare Prometheus. Totul este containerizat și gata pentru producție."
+Arhitectura gestionează trei surse de date, aplică caching inteligent, integrează AI-ul DeepSeek și include monitorizare Prometheus. Totul este containerizat și pregătit pentru producție."
 
-**→ Tranziție la Șerban pentru deep dive backend**
+**→ Tranziție: "Luca vă prezintă arhitectura sistemului."**
 
----
+*(Andrei revine după Șerban — slide-urile 14-25)*
 
-## VORBITOR 2: ȘERBAN (Arhitectura Backend) — ~2m (265 cuvinte)
-
-### ⏱ Slides 4-5 (50s) — Prezentare Arhitectură
-"Acum să ne adâncim în arhitectură. Sistemul are trei straturi: **Inginerie de Date** pe stânga, **Stratul de Date** în mijloc cu PostgreSQL și Redis, și **Stratul de Aplicație** pe dreapta cu API-ul Spring Boot și frontend-ul React.
-
-Pe partea de date, avem un **pipeline cu 6 etape** orkestat cu APScheduler. Etapa 1 parsează metadate Parquet din S3, Etapa 2 ingestionează citiri de senzori, Etapa 3 execută 7 validări de calitate a datelor, Etapa 4 detectează anomalii folosind SQL, Etapa 5 agregrează incidente, și Etapa 6 generează rapoarte AI zilnice. Fiecare etapă este idempotentă și incrementală — perfectă pentru procesare batch fiabilă."
-
-### ⏱ Slide 6 (20s) — Docker
-"Totul rulează în Docker: API-ul Spring Boot, PostgreSQL, Redis și orchestratorul pipeline Python. Setup multi-container cu health checks și gestionare a dependențelor."
-
-### ⏱ Slides 8-11 (45s) — Calitatea Datelor & Detecția Anomaliilor
-"Motorul de calitate a datelor validează fiecare citire individuală pe baza **7 reguli**: verificări de null, alertări pentru putere negativă, praguri de temperatură, intervale de viteză vânt, verificări de capacitate, detecție de duplicate și goluri în date. Fiecare record primește un scor de calitate: OK, DEGRADED, sau SUSPECT.
-
-Apoi rulăm **4 detectoare de anomalii bazate pe SQL**: HIGH_WIND_ZERO_POWER detectează defecțiunile turbinei, DATA_GAP detectează problemele de comunicație, TEMPERATURE_SPIKE identifică probleme mecanice viitoare, și SUSPECT_DATA detectează problemele sistematice de calitate. Anomaliile sunt grupate în incidente per turbină."
-
-### ⏱ Slides 13-13b (35s) — Baza de Date & Caching
-"Folosim **PostgreSQL 16 cu 14 tabele** și 15+ indexuri — indexuri compozite pentru interogări de senzori, indexuri parțiale pentru anomalii și flaguri de calitate. Redis 7 asigură o **strategie de caching în 3 straturi**: cache de 30 de minute în BD pentru rapoarte, cache Redis de 5 minute pentru răspunsuri API și caching pe client. Aceasta reduce apelurile AI API cu 95%.
-
-De asemenea, avem rate limiting cu token bucket în Redis pentru a preveni abuzuri și a controla costurile."
-
-**→ Tranziție la Petru pentru frontend & AI**
-
----
-
-## VORBITOR 3: PETRU (Frontend & Integrare AI) — ~2m (260 cuvinte)
-
-### ⏱ Slide 14 (10s) — Secțiune Spring Boot
-"Trecând la stratul de aplicație..."
+### ⏱ Slide 14 (10s) — Secțiunea Spring Boot
+"Trecând la stratul aplicativ..."
 
 ### ⏱ Slide 15 (40s) — REST API
-"Expunem **25+ puncte de termină REST** prin Spring Boot 3.2. Toate documentate cu Swagger OpenAPI. Avem puncte de capăt pentru prezentare flotă, căutare turbină, timeseries de senzori, preluare de anomalii, raportare de incidente și informații bazate pe AI. Autentificarea este sensibilă la tenant — fiecare organizație vede numai parcurile și turbinele sale."
+"Expunem **peste 25 de endpointuri REST** prin Spring Boot 3.2, toate documentate cu Swagger OpenAPI. Avem endpointuri pentru prezentarea flotei, căutare de turbine, timeseries de senzori, preluare de anomalii, raportare de incidente și informații generate de AI. Autentificarea ține cont de tenant — fiecare organizație vede doar parcurile și turbinele proprii."
 
 ### ⏱ Slide 17 (50s) — Integrare AI
-"Funcția cu valoare adăugată este **raportarea zilnică bazată pe AI** folosind modelul DeepSeek LLM. Trimitem date structurate de anomalii, context de incident și tendințe de senzori API-ului, care sintetizează informații lizibile de oameni: 'Turbina WP-15 experimentează 3 vârfuri de temperatură în 2 ore — se recomandă inspecție de întreținere.'
+"Funcționalitatea-cheie este **raportarea zilnică bazată pe AI** folosind modelul DeepSeek LLM. Trimitem date structurate despre anomalii, contextul incidentelor și tendințe ale senzorilor către API, care sintetizează informații ușor de citit: „Turbina WP-15 a înregistrat 3 vârfuri de temperatură în 2 ore — se recomandă inspecție de întreținere."
 
-Am construit un model complet **circuit breaker** pentru reziliență — dacă API-ul DeepSeek este inactiv, returnăm rapoarte în cache sau degradare gracioză. Monitorizez totul cu dashboarduri Prometheus și Grafana urmărind latența API, rata hit cache și sănătatea sistemului."
+Am implementat un **circuit breaker** complet pentru reziliență — dacă API-ul DeepSeek este indisponibil, returnăm rapoarte din cache sau degradăm grațios. Monitorizăm totul cu dashboarduri Prometheus și Grafana care urmăresc latența API, rata de cache hit și sănătatea sistemului."
 
 ### ⏱ Slides 18-25 (30s) — Frontend & Capturi de Ecran
-"Frontend-ul este **React 19 cu Vite 8**. Avem 6 pagini: un dashboard live cu statistici flote și diagrame în timp real, o vedere hartă geospațială arătând locațiile tuturor turbinelor, o interfață de gestionare a anomaliilor, rapoarte AI zilnice și pagini de detaliu turbină cu timeseries de senzori.
+"Frontend-ul este **React 19 cu Vite 8**. Avem 6 pagini: un dashboard live cu statistici ale flotei și grafice în timp real, o hartă geospațială cu locațiile tuturor turbinelor, o interfață de gestionare a anomaliilor, rapoarte AI zilnice și pagini de detaliu per turbină cu timeseries de senzori.
 
-Totul stilizat cu Tailwind, diagrame interactive prin Recharts și grilaje de date folosind TanStack Table."
+Totul stilizat cu Tailwind, grafice interactive prin Recharts și tabele de date folosind TanStack Table."
 
-### ⏱ Închiere (15s) — Apel la Acțiune
-"Am construit asta în mai puțin de 48 de ore. O platformă completă, de nivel producție. Este containerizată, testată, monitorizată și gată să se scaleze. Vă mulțumesc!"
+### ⏱ Încheiere (15s) — Final
+"Am construit asta în mai puțin de 48 de ore. O platformă completă, de nivel producție. E containerizată, testată, monitorizată și gata să scaleze. Vă mulțumim!"
+
+---
+
+## VORBITOR 2: LUCA (Arhitectura Sistemului) — ~1m 30s
+
+### ⏱ Slides 4-5 (50s) — Prezentare Arhitectură
+"Acum să intrăm în arhitectură. Sistemul are trei straturi: **Ingineria de Date** pe stânga, **Stratul de Date** în centru cu PostgreSQL și Redis, și **Stratul Aplicativ** pe dreapta cu API-ul Spring Boot și frontend-ul React.
+
+Pe partea de date, avem un **pipeline cu 6 etape** orchestrat cu APScheduler. Etapa 1 parsează metadatele Parquet din S3, Etapa 2 ingestionează citirile senzorilor, Etapa 3 rulează cele 7 validări de calitate a datelor, Etapa 4 detectează anomalii folosind SQL, Etapa 5 agregă incidentele, iar Etapa 6 generează rapoarte AI zilnice. Fiecare etapă este idempotentă și incrementală — perfectă pentru procesare batch fiabilă."
+
+### ⏱ Slide 6 (20s) — Docker
+"Totul rulează în Docker: API-ul Spring Boot, PostgreSQL, Redis și orchestratorul de pipeline în Python. Configurație multi-container cu health checks și gestionarea dependențelor."
+
+### ⏱ Slides 13-13b (35s) — Baza de Date & Caching
+"Folosim **PostgreSQL 16 cu 14 tabele** și peste 15 indexuri — indexuri compozite pentru interogări de senzori, indexuri parțiale pentru anomalii și flaguri de calitate. Redis 7 oferă o **strategie de caching pe 3 niveluri**: cache de 30 de minute în baza de date pentru rapoarte, cache Redis de 5 minute pentru răspunsuri API și caching pe client. Asta reduce apelurile către API-ul AI cu 95%.
+
+Avem și rate limiting cu token bucket în Redis pentru a preveni abuzurile și a controla costurile."
+
+**→ Tranziție: "Acum Șerban vă prezintă validarea datelor și detecția anomaliilor."**
+
+---
+
+## VORBITOR 3: ȘERBAN (Validarea Datelor & Detecția Anomaliilor) — ~1m 30s
+
+### ⏱ Slide 8 (25s) — Pipeline & Calitatea Datelor
+"Motorul de calitate a datelor validează fiecare citire pe baza **7 reguli**: verificări de null, semnalare pentru putere negativă, praguri de temperatură, intervale de viteză a vântului, verificări de capacitate, detecție de duplicate și goluri în date. Fiecare înregistrare primește un scor de calitate: OK, DEGRADED sau SUSPECT."
+
+### ⏱ Slide 10 (30s) — Cele 7 Reguli de Validare
+"Mai concret: verificăm dacă lipsesc valori critice, dacă puterea activă e negativă, dacă temperaturile cutiei de viteze și ale rulmenților sunt între -40°C și 150°C, dacă viteza vântului e în intervalul 0-60 m/s, dacă puterea depășește 110% din capacitatea nominală, dacă sunt timestamp-uri duplicate și dacă există perioade cu mai puțin de 50% din citirile așteptate."
+
+### ⏱ Slide 11 (35s) — Detecția Anomaliilor
+"Apoi rulăm **4 detectoare de anomalii bazate pe SQL**: HIGH_WIND_ZERO_POWER detectează defecțiunile turbinei — vânt puternic, dar putere zero. DATA_GAP identifică pauze mai mari de 30 de minute în citiri, semn de probleme de comunicație. TEMPERATURE_SPIKE semnalează creșteri de peste 15°C în 30 de minute la cutia de viteze. Iar SUSPECT_DATA promovează orice citire cu flag SUSPECT la nivel de anomalie. Toate anomaliile sunt apoi grupate în incidente per turbină."
+
+**→ Tranziție: "Andrei continuă cu API-ul, integrarea AI și frontend-ul."**
 
 ---
 
@@ -74,34 +82,35 @@ Totul stilizat cu Tailwind, diagrame interactive prin Recharts și grilaje de da
 
 | Parte | Vorbitor | Slide-uri | Timp |
 |-------|----------|-----------|------|
-| Intro | Andrei | 1–3 | 1:45 |
-| Backend | Șerban | 4–15 | 2:00 |
-| Frontend & AI | Petru | 16–25 | 1:45 |
+| Intro, Problema, Ce am construit | Andrei | 1-3 | 1:30 |
+| Arhitectură, Docker, BD & Cache | Luca | 4-6, 13-13b | 1:30 |
+| Validare date & Anomalii | Șerban | 8, 10-11 | 1:30 |
+| API, AI, Frontend, Încheiere | Andrei | 14-25 | 1:00 |
 | **Total** | | | **5:30** |
 
 ---
 
 ## SFATURI PENTRU PREZENTARE
 
-1. **Folosiți un Instrument de Prezentare** — Avan­sați slide-urile cu taste săgeți sau telecomandă
-2. **Vorbți Natural** — Acestea sunt linii directoare, nu script cuvânt-cu-cuvânt. Adaptați tonul și ritmul
-3. **Subliniați Numerele Cheie** — 99 turbine, 384K de citiri, 6 etape, 7 validări, 25 de puncte de termină
-4. **Faceți Pauze pentru Impact** — După arătarea diagramelor de arhitectură sau capturilor de ecran din dashboard
-5. **Contactul cu Ochii** — Concentrați-vă pe judecători/public, nu pe slide-uri
-6. **Coordonați Tranzițiile** — Tranziții lejere între vorbitori (de ex., "Peste la Șerban pentru backend...")
-7. **Un Arc de Poveste Singular** — Problemă → Soluție → Demo → Impact. Păstrați-o liniară, evitați săriturile
-8. **Ieșiți Puternic** — Sfârșiți cu gânduri de producție, scalabilitate și domeniu curajos livrat în 48 de ore
+1. **Folosiți un instrument de prezentare** — Avansați slide-urile cu tastele săgeți sau o telecomandă
+2. **Vorbiți natural** — Acestea sunt linii directoare, nu un script cuvânt cu cuvânt. Adaptați tonul și ritmul
+3. **Accentuați numerele-cheie** — 99 de turbine, 384K citiri, 6 etape, 7 validări, 25 de endpointuri
+4. **Faceți pauze pentru impact** — După diagramele de arhitectură sau capturile de ecran din dashboard
+5. **Contactul vizual** — Concentrați-vă pe juriu/public, nu pe slide-uri
+6. **Coordonați tranzițiile** — Tranziții line între vorbitori
+7. **Un singur arc narativ** — Problemă → Soluție → Demo → Impact. Păstrați-l liniar, evitați săriturile
+8. **Încheiați puternic** — Terminați cu ideea de producție, scalabilitate și tot ce s-a livrat în 48 de ore
 
 ---
 
-## SETUP MICROFON VORBITORI (Opțional)
+## ORDINEA VORBITORILOR
 
-Dacă folosiți o telecomandă de prezentare cu microfon integrat:
-- **Andrei:** Vorbește primul, introduce echipa și problema
-- **Șerban:** Preia la jumătatea arhitecturii, deține backend + stratul de date
-- **Petru:** Închide cu frontend, AI și gânduri finale
+- **Andrei:** Deschide (slide-urile 1-3), apoi revine la final (slide-urile 14-25)
+- **Luca:** Arhitectura sistemului și baza de date (slide-urile 4-6, 13-13b)
+- **Șerban:** Validarea datelor și detecția anomaliilor (slide-urile 8, 10-11)
 
 **Fraze de tranziție recomandate:**
-- Andrei → Șerban: *"Pentru a construi asta, am creat un backend destul de sofisticat. Peste la Șerban..."*
-- Șerban → Petru: *"Toate astea funcționează datorită caching-ului inteligent și designului API. Lasă-mă pe Petru să-ți arate experiența utilizatorului..."*
-- Petru → Închiere: *"Totul rulează în containere și se scalează orizontal. Vă mulțumesc!"*
+- Andrei → Luca: *"Luca vă prezintă cum e gândit sistemul pe interior."*
+- Luca → Șerban: *"Acum Șerban vă arată cum validăm datele și detectăm anomaliile."*
+- Șerban → Andrei: *"Andrei continuă cu API-ul, AI-ul și frontend-ul."*
+- Andrei → Încheiere: *"Am construit totul în mai puțin de 48 de ore. Vă mulțumim!"*
